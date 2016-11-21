@@ -1,4 +1,4 @@
 {project,{"httpation",{0,1,0}}}.
-{sources,[{source,httpation,"./srchttpation.erl",
+{sources,[{source,httpation,"./src/httpation.erl",
                   {0,1,0},
                   {{2016,11,21},{3,3,38}}}]}.
