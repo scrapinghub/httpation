@@ -1,0 +1,21 @@
+#! /bin/bash
+# A convenience utility to remove all beams in this project tree.
+
+Sweep ()
+{
+    rm -f ebin/*.beam
+    rm -f doc/*.{png,css,html}
+    rm -f doc/edoc-info
+    rm -f erl_crash.dump
+}
+
+Sweep
+
+for d in $(ls lib)
+do
+    pushd "lib/$d"
+    Sweep
+    popd
+done
+
+echo "Sweep, sweep... erase, erase... Done!"

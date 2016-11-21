@@ -1,0 +1,7 @@
+@author Craig Everett <zxq9@zxq9.com> [https://github.com/scrapinghub/httpation]
+@copyright ScrapingHub
+@version 0.1.0
+@title HTTPation
+
+@doc
+An HTTP request, response, URI and exchange data abstraction and manipulation library.

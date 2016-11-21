@@ -1,0 +1,15 @@
+#! /bin/bash
+# A convenience utility to freshly build and launch the current project.
+
+./zmake
+
+# Uncomment the following if libs are being edited as well.
+#for dir in $(ls lib)
+#do
+#    pushd "lib/$dir"
+#    ./zmake
+#    popd
+#done
+
+export ERL_LIBS="lib"
+erl -pa ebin -s httpation
