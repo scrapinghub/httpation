@@ -1,5 +1,5 @@
 %%% @doc
-%%% Urilator: A URI handling library.
+%%% Urilator: A URI handling function library.
 %%%
 %%% An ADT utility for URIs. Includes import, export and validation functions.
 %%%
@@ -12,7 +12,7 @@
 %%%     * Canonicalize the record fields in accordance with above RFCs.
 %%% @end
 
--module(urilator).
+-module(httpation_uri).
 -vsn("0.1.0").
 
 -export([new/0, new/1,
@@ -35,7 +35,7 @@
          password = ""      :: string(),
          hostname = []      :: [string()],
          port     = default :: default | inet:port_number(),
-         path     = "/"     :: [string()],
+         path     = ["/"]   :: [string()],
          qs       = []      :: [qs()],
          fragment = ""      :: string(),
          original = ""      :: string()}).
@@ -57,16 +57,20 @@ new() ->
 
 
 -spec new(URI) -> Result
-    when URI    :: string(),
-         Result :: {ok, uri()}
-                 | error.
+    when URI     :: string(),
+         Result  :: {ok, uri()}
+                  | {error, Reason},
+         Reason  :: not_a_string | Segment,
+         Segment :: atom().
 %% @doc
 %% Accept a URI as a string and return a urilator:uri() structure.
 %% If the input string is not a valid URI `{error, FunName, Args}' is returned.
 
-new(URI) ->
+new(URI) when is_list(URI) ->
     String = string:to_lower(URI),
-    consume_protocol("", String, #uri{original = URI}).
+    consume_protocol("", String, #uri{original = URI});
+new(_) ->
+    {error, not_a_string}.
 
 
 consume_protocol(Acc, "://" ++ Rest, URI) ->
@@ -77,11 +81,11 @@ consume_protocol(Acc, [Letter | Rest], URI)
              $0 =< Letter, Letter =< $9 ->
     consume_protocol([Letter | Acc], Rest, URI);
 consume_protocol(_, _, _) ->
-    error.
+    {error, scheme}.
 
 
 consume_username("", "", _) ->
-    error;
+    {error, user_or_hostname};
 consume_username(Acc, "", URI) ->
     Hostname = string:tokens(lists:reverse(Acc), "."),
     {ok, URI#uri{hostname = Hostname}};
@@ -101,11 +105,11 @@ consume_username(Acc, [Letter | Rest], URI)
              Letter == $=; Letter == $. ->
     consume_username([Letter | Acc], Rest, URI);
 consume_username(_, _, _) ->
-    error.
+    {error, user_or_hostname}.
 
 
 consume_password("", "", #uri{username = ""}) ->
-    error;
+    {error, password_or_port};
 consume_password("", "", URI = #uri{username = Username}) ->
     Hostname = string:tokens(Username, "."),
     {ok, URI#uri{username = "", hostname = Hostname}};
@@ -118,7 +122,7 @@ consume_password(Acc, "", URI = #uri{username = Username}) ->
             Hostname = string:tokens(Username, "."),
             {ok, URI#uri{username = "", hostname = Hostname, port = Port}};
         _ ->
-            error
+            {error, port}
     end;
 consume_password(Acc, [$/ | Rest], URI = #uri{username = Username}) ->
     case string:to_integer(lists:reverse(Acc)) of
@@ -127,7 +131,7 @@ consume_password(Acc, [$/ | Rest], URI = #uri{username = Username}) ->
             NewURI = URI#uri{username = "", hostname = Hostname, port = Port},
             consume_path("", [], Rest, NewURI);
         _ ->
-            error
+            {error, port}
     end;
 consume_password(Acc, [$@ | Rest], URI) ->
     Password = lists:reverse(Acc),
@@ -138,14 +142,14 @@ consume_password(Acc, [Letter | Rest], URI)
              Letter == $-; Letter == $_ ->
     consume_password([Letter | Acc], Rest, URI);
 consume_password(_, _, _) ->
-    error.
+    {error, port}.
 
 
 consume_hostname(Acc, Parts, "", URI) ->
     Part = lists:reverse(Acc),
     NewParts = [Part | Parts],
     Hostname = lists:reverse(NewParts),
-    {ok, URI#uri{hostname = Hostname, path = "/"}};
+    {ok, URI#uri{hostname = Hostname, path = ["/"]}};
 consume_hostname(Acc, Parts, [$. | Rest], URI) ->
     Part = lists:reverse(Acc),
     consume_hostname("", [Part | Parts], Rest, URI);
@@ -165,7 +169,7 @@ consume_hostname(Acc, Parts, [Letter | Rest], URI)
              Letter == $-; Letter == $_ ->
     consume_hostname([Letter | Acc], Parts, Rest, URI);
 consume_hostname(_, _, _, _) ->
-    error.
+    {error, hostname}.
 
 
 consume_port(Acc, "", URI) ->
@@ -184,7 +188,7 @@ consume_port(Acc, [Letter | Rest], URI)
         when $0 =< Letter, Letter =< $9 ->
     consume_port([Letter | Acc], Rest, URI);
 consume_port(_, _, _) ->
-    error.
+    {error, port}.
 
 
 consume_path(Acc, Parts, "", URI) ->
@@ -213,7 +217,7 @@ consume_path(Acc, Parts, [Letter | Rest], URI)
              Letter == $%; Letter == $+ ->
     consume_path([Letter | Acc], Parts, Rest, URI);
 consume_path(_, _, _, _) ->
-    error.
+    {error, path}.
 
 
 consume_qs("", URI) ->
@@ -256,7 +260,7 @@ consume_qs(Acc, Parts, [Letter | Rest], URI)
              Letter == $/ ->
     consume_qs([Letter | Acc], Parts, Rest, URI);
 consume_qs(_, _, _, _) ->
-    error.
+    {error, querystring}.
 
 
 consume_qs(Acc, Q, Parts, "", URI) ->
@@ -284,9 +288,9 @@ consume_fragment(Acc, "", URI) ->
     Fragment = lists:reverse(Acc),
     {ok, URI#uri{fragment = Fragment}};
 consume_fragment(Acc, [Letter | Rest], URI) ->
-    consume_fragment([Letter | Acc], Rest, URI);
-consume_fragment(_, _, _) ->
-    error.
+    consume_fragment([Letter | Acc], Rest, URI).
+%consume_fragment(_, _, _) ->
+%    {error, fragment}.
 
 
 -spec export(URI) -> String
@@ -525,11 +529,23 @@ construct_uri(UriString, Defaults) ->
     case new(UriString) of
         {ok, URI} ->
             QS = qs(URI),
-            Update = fun({Key, Value}, QueryList) -> lists:keystore(Key, 1, QueryList, {Key, Value}) end,
-            {ok, lists:foldl(Update, Defaults, QS)};
-        error ->
-            {error, bad_uri}
+            {ok, lists:foldl(fun update_listkey/2, Defaults, QS)};
+        Error ->
+            Error
     end.
+
+
+-spec update_listkey({Key, Value}, AccList) -> NewAccList
+    when Key        :: string(),
+         Value      :: string(),
+         AccList    :: list(),
+         NewAccList :: list().
+%% @private
+%% A helper function for using a fold to override default header values with a list
+%% list of current header value overrides. Called by the foldl in construct_uri/2.
+         
+update_listkey({Key, Value}, QueryList) ->
+    lists:keystore(Key, 1, QueryList, {Key, Value}).
 
 
 %-spec is_tld(Domain) -> Result
