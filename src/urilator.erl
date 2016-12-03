@@ -35,7 +35,7 @@
          password = ""      :: string(),
          hostname = []      :: [string()],
          port     = default :: default | inet:port_number(),
-         path     = []      :: [string()],
+         path     = "/"     :: [string()],
          qs       = []      :: [qs()],
          fragment = ""      :: string(),
          original = ""      :: string()}).
@@ -80,6 +80,14 @@ consume_protocol(_, _, _) ->
     error.
 
 
+consume_username("", "", _) ->
+    error;
+consume_username(Acc, "", URI) ->
+    Hostname = string:tokens(lists:reverse(Acc), "."),
+    {ok, URI#uri{hostname = Hostname}};
+consume_username(Acc, [$/ | Rest], URI) ->
+    Hostname = string:tokens(lists:reverse(Acc), "."),
+    consume_path("", [], Rest, URI#uri{hostname = Hostname});
 consume_username(Acc, [$: | Rest], URI) ->
     Username = lists:reverse(Acc),
     consume_password("", Rest, URI#uri{username = Username});
@@ -89,12 +97,38 @@ consume_username(Acc, [$@ | Rest], URI) ->
 consume_username(Acc, [Letter | Rest], URI)
         when $a =< Letter, Letter =< $z;
              $0 =< Letter, Letter =< $9;
-             Letter == $-; Letter == $_ ->
+             Letter == $-; Letter == $_;
+             Letter == $=; Letter == $. ->
     consume_username([Letter | Acc], Rest, URI);
-consume_username(_, "", _) ->
+consume_username(_, _, _) ->
     error.
 
 
+consume_password("", "", #uri{username = ""}) ->
+    error;
+consume_password("", "", URI = #uri{username = Username}) ->
+    Hostname = string:tokens(Username, "."),
+    {ok, URI#uri{username = "", hostname = Hostname}};
+consume_password("", [$/ | Rest], URI = #uri{username = Username}) ->
+    Hostname = string:tokens(Username, "."),
+    consume_path("", [], Rest, URI#uri{username = "", hostname = Hostname});
+consume_password(Acc, "", URI = #uri{username = Username}) ->
+    case string:to_integer(lists:reverse(Acc)) of
+        {Port, ""} ->
+            Hostname = string:tokens(Username, "."),
+            {ok, URI#uri{username = "", hostname = Hostname, port = Port}};
+        _ ->
+            error
+    end;
+consume_password(Acc, [$/ | Rest], URI = #uri{username = Username}) ->
+    case string:to_integer(lists:reverse(Acc)) of
+        {Port, ""} ->
+            Hostname = string:tokens(Username, "."),
+            NewURI = URI#uri{username = "", hostname = Hostname, port = Port},
+            consume_path("", [], Rest, NewURI);
+        _ ->
+            error
+    end;
 consume_password(Acc, [$@ | Rest], URI) ->
     Password = lists:reverse(Acc),
     consume_hostname("", [], Rest, URI#uri{password = Password});
@@ -111,7 +145,7 @@ consume_hostname(Acc, Parts, "", URI) ->
     Part = lists:reverse(Acc),
     NewParts = [Part | Parts],
     Hostname = lists:reverse(NewParts),
-    {ok, URI#uri{hostname = Hostname}};
+    {ok, URI#uri{hostname = Hostname, path = "/"}};
 consume_hostname(Acc, Parts, [$. | Rest], URI) ->
     Part = lists:reverse(Acc),
     consume_hostname("", [Part | Parts], Rest, URI);
@@ -193,11 +227,6 @@ consume_qs(Rest, URI) ->
 consume_qs("", Parts, "", URI) ->
     QS = lists:reverse(Parts),
     {ok, URI#uri{qs = QS}};
-consume_qs({Q, Acc}, Parts, "", URI) ->
-    S = lists:reverse(Acc),
-    Part = {Q, S},
-    QS = lists:reverse([Part | Parts]),
-    {ok, URI#uri{qs = QS}};
 consume_qs(Acc, Parts, "", URI) ->
     Q = lists:reverse(Acc),
     Part = {Q, ""},
@@ -206,42 +235,15 @@ consume_qs(Acc, Parts, "", URI) ->
 consume_qs("", Parts, [$# | Rest], URI) ->
     QS = lists:reverse(Parts),
     consume_fragment("", Rest, URI#uri{qs = QS});
-consume_qs(Part, Parts, [$# | Rest], URI) ->
+consume_qs(Acc, Parts, [$# | Rest], URI) ->
+    Q = lists:reverse(Acc),
+    Part = {Q, ""},
     QS = lists:reverse([Part | Parts]),
     consume_fragment("", Rest, URI#uri{qs = QS});
-consume_qs({Q, Acc}, Parts, [$& | Rest], URI) ->
-    S = lists:reverse(Acc),
-    consume_qs("", [{Q, S} | Parts], Rest, URI);
-consume_qs("", Parts, [$& | Rest], URI) ->
-    consume_qs("", Parts, Rest, URI);
-consume_qs(Acc, Parts, [$& | Rest], URI)
-        when is_list(Acc) ->
-    Q = lists:reverse(Acc),
-    consume_qs("", [{Q, ""} | Parts], Rest, URI);
-consume_qs({Q, Acc}, Parts, [$; | Rest], URI) ->
-    S = lists:reverse(Acc),
-    consume_qs("", [{Q, S} | Parts], Rest, URI);
-consume_qs("", Parts, [$; | Rest], URI) ->
-    consume_qs("", Parts, Rest, URI);
-consume_qs(Acc, Parts, [$; | Rest], URI)
-        when is_list(Acc) ->
-    Q = lists:reverse(Acc),
-    consume_qs("", [{Q, ""} | Parts], Rest, URI);
+consume_qs("", _, [$= | _], _) ->
+    error;
 consume_qs(Acc, Parts, [$= | Rest], URI) ->
-    Q = lists:reverse(Acc),
-    consume_qs({Q, ""}, Parts, Rest, URI);
-consume_qs({Q, Acc}, Parts, [Letter | Rest], URI)
-        when $a =< Letter, Letter =< $z;
-             $0 =< Letter, Letter =< $9;
-             Letter == $-; Letter == $_;
-             Letter == $.; Letter == $,;
-             Letter == $%; Letter == $+;
-             Letter == $%; Letter == $+;
-             Letter == ${; Letter == $};
-             Letter == $[; Letter == $];
-             Letter == $:; Letter == $@;
-             Letter == $/ ->
-    consume_qs({Q, [Letter | Acc]}, Parts, Rest, URI);
+    consume_qs("", lists:reverse(Acc), Parts, Rest, URI);
 consume_qs(Acc, Parts, [Letter | Rest], URI)
         when $a =< Letter, Letter =< $z;
              $0 =< Letter, Letter =< $9;
@@ -257,15 +259,31 @@ consume_qs(_, _, _, _) ->
     error.
 
 
+consume_qs(Acc, Q, Parts, "", URI) ->
+    S = lists:reverse(Acc),
+    QS = lists:reverse([{Q, S} | Parts]),
+    {ok, URI#uri{qs = QS}};
+consume_qs(Acc, Q, Parts, [$& | Rest], URI) ->
+    S = lists:reverse(Acc),
+    consume_qs("", [{Q, S} | Parts], Rest, URI);
+consume_qs(Acc, Q, Parts, [$; | Rest], URI) ->
+    S = lists:reverse(Acc),
+    consume_qs("", [{Q, S} | Parts], Rest, URI);
+consume_qs(Acc, Q, Parts, [$# | Rest], URI) ->
+    S = lists:reverse(Acc),
+    QS = lists:reverse([{Q, S} | Parts]),
+    consume_fragment("", Rest, URI#uri{qs = QS});
+consume_qs(Acc, Q, Parts, [Letter | Rest], URI) ->
+    consume_qs([Letter | Acc], Q, Parts, Rest, URI).
+
+
+% TODO: Escaping -- the top clause is just a shortcut for no escapes
+%consume_fragment("", Fragment, URI) ->
+%    {ok, URI#uri{fragment = Fragment}};
 consume_fragment(Acc, "", URI) ->
     Fragment = lists:reverse(Acc),
     {ok, URI#uri{fragment = Fragment}};
-consume_fragment(Acc, [Letter | Rest], URI)
-        when $a =< Letter, Letter =< $z;
-             $0 =< Letter, Letter =< $9;
-             Letter == $-; Letter == $_;
-             Letter == $.; Letter == $,;
-             Letter == $%; Letter == $+ ->
+consume_fragment(Acc, [Letter | Rest], URI) ->
     consume_fragment([Letter | Acc], Rest, URI);
 consume_fragment(_, _, _) ->
     error.
