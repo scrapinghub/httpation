@@ -4,19 +4,28 @@
 
 -module(httpation_response).
 -vsn("0.1.0").
+-author("Craig Everett <zxq9@zxq9.com>").
 
 -export([new/0, new/1]).
 
 -record(http_response,
         {}).
 
--export_type([data/0, partial/0]).
+-export_type([data/0, partial/0, segment/0]).
 
 -type data()    :: #http_response{}.
--type partial() :: {Next    :: atom(),      % TODO: Enumerate
+-type partial() :: {Next    :: segment(),
                     Buffer  :: iodata(),
                     Partial :: #http_response{}}.
+-type segment() :: line
+                 | header
+                 | body
+                 | chunk
+                 | trailer.
 
+
+
+%%% Interface functions
 
 -spec new() -> data().
 %% @doc

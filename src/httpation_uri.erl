@@ -14,6 +14,7 @@
 
 -module(httpation_uri).
 -vsn("0.1.0").
+-author("Craig Everett <zxq9@zxq9.com>").
 
 -export([new/0, new/1,
          export/1,
@@ -28,6 +29,7 @@
          check_custom_port/2,
          pack_uri/5]).
 
+-export_type([uri/0, qs/0, segment/0]).
 
 -record(uri,
         {protocol = ""      :: string(),
@@ -44,9 +46,20 @@
 %        escaped  = ""      :: string()}).
 
 
--type uri() :: #uri{}.
--type qs()  :: {Label :: string(), Value :: string()}.
+-type uri()     :: #uri{}.
+-type qs()      :: {Label :: string(), Value :: string()}.
+-type segment() :: scheme
+                 | user_or_hostname
+                 | hostname_or_port
+                 | hostname
+                 | port
+                 | path
+                 | querystring
+                 | fragment.
 
+
+
+%%% Interface functions
 
 -spec new() -> uri().
 %% @doc
@@ -60,8 +73,7 @@ new() ->
     when URI     :: string(),
          Result  :: {ok, uri()}
                   | {error, Reason},
-         Reason  :: not_a_string | Segment,
-         Segment :: atom().
+         Reason  :: not_a_string | segment().
 %% @doc
 %% Accept a URI as a string and return a urilator:uri() structure.
 %% If the input string is not a valid URI `{error, FunName, Args}' is returned.

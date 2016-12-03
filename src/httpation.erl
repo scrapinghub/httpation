@@ -1,9 +1,13 @@
 %%% @doc
 %%% HTTPation: An HTTP utility library.
+%%%
+%%% This module provides a high-level interface for generation of each major type
+%%% handled by this library in addition to cleaner exported type name aliases.
 %%% @end
 
 -module(httpation).
 -vsn("0.1.0").
+-author("Craig Everett <zxq9@zxq9.com>").
 
 -export([uri/0,      uri/1,
          request/0,  request/1,
@@ -62,8 +66,7 @@ request() ->
          Result  :: {ok, request()}
                   | {partial, httpation_request:partial()}
                   | {error, Reason},
-         Reason  :: bad_type | Segment,
-         Segment :: atom().
+         Reason  :: bad_type | httpation_request:segment().
 %% @doc
 %% Accept a binary or string and return a fully or partially parsed request object, or
 %% return an error if the request stream is invalid. The input must already be a binary
@@ -93,8 +96,7 @@ response() ->
          Result  :: {ok, response()}
                   | {partial, httpation_response:partial()}
                   | {error, Reason},
-         Reason  :: bad_type | Segment,
-         Segment :: atom().
+         Reason  :: bad_type | httpation_response:segment().
 %% @doc
 %% Accept a binary or string and return a fully or partially parsed response object, or
 %% return an error if the request stream is invalid. The input must already be a binary
