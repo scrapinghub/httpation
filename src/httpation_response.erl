@@ -9,11 +9,18 @@
 -export([new/0, new/1]).
 
 -record(http_response,
-        {}).
+        {version    = none :: none | httpation:version(),
+         code       = none :: none | code(),
+         phrase     = none :: none | string(),
+         headers    = none :: none | [httpation:header()],
+         chunk_size = none :: none | non_neg_integer(),
+         body       = none :: none | unicode:chardata() | binary(),
+         trailer    = none :: none | [httpation:header()]}).
 
 -export_type([data/0, partial/0, segment/0]).
 
 -type data()    :: #http_response{}.
+-type code()    :: 100..999.
 -type partial() :: {Next    :: segment(),
                     Buffer  :: iodata(),
                     Partial :: #http_response{}}.

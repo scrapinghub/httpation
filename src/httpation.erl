@@ -14,7 +14,8 @@
          response/0, response/1,
          exchange/0]).
 
--export_type([uri/0, request/0, response/0, exchange/0]).
+-export_type([uri/0, version/0, header/0,
+              request/0, response/0, exchange/0]).
 
 
 -record(http_exchange,
@@ -23,6 +24,11 @@
          response   = httpation_response:new()}).
 
 -type uri()      :: urilator:uri().
+-type version()  :: {1, 0}
+                  | {1, 1}
+                  | {2, 0}.
+-type header()  :: {Label :: string(),
+                    Value :: string()}.
 -type request()  :: httpation_request:data().
 -type response() :: httpation_response:data().
 -type exchange() :: #http_exchange{}.
