@@ -9,11 +9,25 @@
 -export([new/0, new/1]).
 
 -record(http_request,
-        {}).
+        {uri        = none :: none | httpation:uri(),
+         method     = none :: none | method(),
+         version    = none :: none | httpation:version(),
+         headers    = none :: none | [httpation:header()],
+         chunk_size = none :: none | non_neg_integer(),
+         body       = none :: none | unicode:chardata() | binary(),
+         trailer    = none :: none | [httpation:header()]}).
 
--export_type([data/0, partial/0, segment/0]).
+-export_type([data/0, method/0, partial/0, segment/0]).
 
 -type data()    :: #http_request{}.
+-type method()  :: get
+                 | post
+                 | head
+                 | put
+                 | delete
+                 | connect
+                 | options
+                 | trace.
 -type partial() :: {Next    :: segment(),
                     Buffer  :: iodata(),
                     Partial :: #http_request{}}.
