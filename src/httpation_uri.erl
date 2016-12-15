@@ -293,14 +293,14 @@ consume_qs(Acc, Q, Parts, [Letter | Rest], URI) ->
     consume_qs([Letter | Acc], Q, Parts, Rest, URI).
 
 
-% TODO: Escaping -- the top clause is just a shortcut for no escapes
-%consume_fragment("", Fragment, URI) ->
+consume_fragment(_, Fragment, URI) ->
+    {ok, URI#uri{fragment = Fragment}}.
+% TODO: Escaping. The version above simply doesn't escape anything.
+%consume_fragment(Acc, "", URI) ->
+%    Fragment = lists:reverse(Acc),
 %    {ok, URI#uri{fragment = Fragment}};
-consume_fragment(Acc, "", URI) ->
-    Fragment = lists:reverse(Acc),
-    {ok, URI#uri{fragment = Fragment}};
-consume_fragment(Acc, [Letter | Rest], URI) ->
-    consume_fragment([Letter | Acc], Rest, URI).
+%consume_fragment(Acc, [Letter | Rest], URI) ->
+%    consume_fragment([Letter | Acc], Rest, URI).
 %consume_fragment(_, _, _) ->
 %    {error, fragment}.
 
