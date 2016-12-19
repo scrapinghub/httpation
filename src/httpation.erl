@@ -6,7 +6,7 @@
 %%% @end
 
 -module(httpation).
--vsn("0.1.0").
+-vsn("0.2.0").
 -author("Craig Everett <zxq9@zxq9.com>").
 
 -export([uri/0,      uri/1,
