@@ -1,5 +1,8 @@
 -module (http_request_tests).
 
+-vsn("0.2.0").
+-author("Oleg Tarasenko <oltarasenko@gmail.com>").
+
 -include_lib("eunit/include/eunit.hrl").
 
 method_test() ->

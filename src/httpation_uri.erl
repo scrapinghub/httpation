@@ -555,7 +555,7 @@ construct_uri(UriString, Defaults) ->
 %% @private
 %% A helper function for using a fold to override default header values with a list
 %% list of current header value overrides. Called by the foldl in construct_uri/2.
-         
+
 update_listkey({Key, Value}, QueryList) ->
     lists:keystore(Key, 1, QueryList, {Key, Value}).
 

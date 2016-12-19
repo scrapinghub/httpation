@@ -3,8 +3,9 @@
 %%% @end
 
 -module(httpation_request).
--vsn("0.1.0").
+-vsn("0.2.0").
 -author("Craig Everett <zxq9@zxq9.com>").
+-author("Oleg Tarasenko <oltarasenko@gmail.com>").
 
 -export([new/0,        new/1,
          method/1,     method/2,
