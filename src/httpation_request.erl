@@ -6,7 +6,10 @@
 -vsn("0.1.0").
 -author("Craig Everett <zxq9@zxq9.com>").
 
--export([new/0, new/1]).
+-export([new/0, new/1, method/1, method/2,
+         version/1, version/2, headers/1, headers/2,
+         uri/1, uri/2, chunk_size/1, chunk_size/2,
+         body/1, body/2, trailer/1, trailer/2]).
 
 -record(http_request,
         {uri        = none :: none | httpation:uri(),
@@ -63,3 +66,143 @@ new(String) when is_list(String) ->
     {ok, #http_request{}};
 new(_) ->
     {error, not_a_string}.
+
+
+-spec method(Request) -> Method
+    when Request :: httpation:request(),
+         Method  :: method().
+    %% @doc
+    %% Returns HTTP method of the given request
+
+method(_Request=#http_request{method=Method}) ->
+    Method.
+
+
+-spec method(Request, Method) -> NewRequest
+    when Request    :: httpation:request(),
+         Method     :: method(),
+         NewRequest :: httpation:request().
+%% @doc
+%% Set HTTP method of given request entity
+method(Request, Method) ->
+    Request#http_request{method = Method}.
+
+
+-spec version(Request) -> Version
+    when Request :: httpation:request(),
+         Version  :: httpation:version().
+    %% @doc
+    %% Returns the version of the given request
+
+version(_Request=#http_request{version=Version}) ->
+    Version.
+
+
+-spec version(Request, Version) -> NewRequest
+    when Request    :: httpation:request(),
+         Version    :: httpation:version(),
+         NewRequest :: httpation:request().
+%% @doc
+%% Set version of the given request entity
+version(Request, Version) ->
+    Request#http_request{version = Version}.
+
+
+-spec headers(Request) -> Headers
+    when Request  :: httpation:request(),
+         Headers  :: [httpation:header()].
+    %% @doc
+    %% Returns the headers of the given request
+
+headers(_Request=#http_request{headers=Headers}) ->
+    Headers.
+
+
+-spec headers(Request, Headers) -> NewRequest
+    when Request    :: httpation:request(),
+         Headers    :: [httpation:header()],
+         NewRequest :: httpation:request().
+%% @doc
+%% Set headers of the given request entity
+headers(Request, Headers) ->
+    Request#http_request{headers = Headers}.
+
+
+-spec uri(Request) -> URI
+    when Request  :: httpation:request(),
+         URI      :: httpation:uri().
+    %% @doc
+    %% Returns the uri of the given request
+
+uri(_Request=#http_request{uri=URI}) ->
+    URI.
+
+
+-spec uri(Request, URI) -> NewRequest
+    when Request    :: httpation:request(),
+         URI        :: httpation:uri(),
+         NewRequest :: httpation:request().
+%% @doc
+%% Set uri of the given request entity
+uri(Request, URI) ->
+    Request#http_request{uri = URI}.
+
+
+-spec chunk_size(Request) -> ChunkSize
+    when Request   :: httpation:request(),
+         ChunkSize :: non_neg_integer().
+    %% @doc
+    %% Returns the chunk size of the given request
+
+chunk_size(_Request=#http_request{chunk_size=ChunkSize}) ->
+    ChunkSize.
+
+
+-spec chunk_size(Request, ChunkSize) -> NewRequest
+    when Request    :: httpation:request(),
+         ChunkSize  :: non_neg_integer(),
+         NewRequest :: httpation:request().
+%% @doc
+%% Set chunk size of the given request entity
+chunk_size(Request, ChunkSize) ->
+    Request#http_request{chunk_size = ChunkSize}.
+
+
+-spec body(Request) -> Body
+    when Request :: httpation:request(),
+         Body    ::  unicode:chardata() | binary().
+    %% @doc
+    %% Returns the body of the given request
+
+body(_Request=#http_request{body=Body}) ->
+    Body.
+
+
+-spec body(Request, Body) -> NewRequest
+    when Request    :: httpation:request(),
+         Body       :: unicode:chardata() | binary() ,
+         NewRequest :: httpation:request().
+%% @doc
+%% Set body of the given request entity
+body(Request, Body) ->
+    Request#http_request{body = Body}.
+
+
+-spec trailer(Request) -> Trailer
+    when Request :: httpation:request(),
+         Trailer :: [httpation:header()].
+    %% @doc
+    %% Returns the trailer of the given request
+
+trailer(_Request=#http_request{trailer=Trailer}) ->
+    Trailer.
+
+
+-spec trailer(Request, Trailer) -> NewRequest
+    when Request    :: httpation:request(),
+         Trailer    :: [httpation:header()],
+         NewRequest :: httpation:request().
+%% @doc
+%% Set trailer of the given request entity
+trailer(Request, Trailer) ->
+    Request#http_request{trailer = Trailer}.

@@ -40,4 +40,5 @@ dialyze() ->
 
 
 test() ->
-    io:format("TEST: If I only had a brain.~n").
+    ok = make(),
+    eunit:test([{dir, "ebin"}]).
