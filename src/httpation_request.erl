@@ -6,10 +6,14 @@
 -vsn("0.1.0").
 -author("Craig Everett <zxq9@zxq9.com>").
 
--export([new/0, new/1, method/1, method/2,
-         version/1, version/2, headers/1, headers/2,
-         uri/1, uri/2, chunk_size/1, chunk_size/2,
-         body/1, body/2, trailer/1, trailer/2]).
+-export([new/0,        new/1,
+         method/1,     method/2,
+         version/1,    version/2,
+         headers/1,    headers/2,
+         uri/1,        uri/2,
+         chunk_size/1, chunk_size/2,
+         body/1,       body/2,
+         trailer/1,    trailer/2]).
 
 -record(http_request,
         {uri        = none :: none | httpation:uri(),
@@ -74,7 +78,7 @@ new(_) ->
     %% @doc
     %% Returns HTTP method of the given request
 
-method(_Request=#http_request{method=Method}) ->
+method(#http_request{method = Method}) ->
     Method.
 
 
@@ -94,7 +98,7 @@ method(Request, Method) ->
     %% @doc
     %% Returns the version of the given request
 
-version(_Request=#http_request{version=Version}) ->
+version(#http_request{version = Version}) ->
     Version.
 
 
@@ -114,7 +118,7 @@ version(Request, Version) ->
     %% @doc
     %% Returns the headers of the given request
 
-headers(_Request=#http_request{headers=Headers}) ->
+headers(#http_request{headers = Headers}) ->
     Headers.
 
 
@@ -134,7 +138,7 @@ headers(Request, Headers) ->
     %% @doc
     %% Returns the uri of the given request
 
-uri(_Request=#http_request{uri=URI}) ->
+uri(#http_request{uri = URI}) ->
     URI.
 
 
@@ -154,7 +158,7 @@ uri(Request, URI) ->
     %% @doc
     %% Returns the chunk size of the given request
 
-chunk_size(_Request=#http_request{chunk_size=ChunkSize}) ->
+chunk_size(#http_request{chunk_size = ChunkSize}) ->
     ChunkSize.
 
 
@@ -174,7 +178,7 @@ chunk_size(Request, ChunkSize) ->
     %% @doc
     %% Returns the body of the given request
 
-body(_Request=#http_request{body=Body}) ->
+body(#http_request{body = Body}) ->
     Body.
 
 
@@ -194,7 +198,7 @@ body(Request, Body) ->
     %% @doc
     %% Returns the trailer of the given request
 
-trailer(_Request=#http_request{trailer=Trailer}) ->
+trailer(#http_request{trailer = Trailer}) ->
     Trailer.
 
 
