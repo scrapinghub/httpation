@@ -83,13 +83,13 @@ method(#http_request{method = Method}) ->
     Method.
 
 
--spec method(Request, Method) -> NewRequest
-    when Request    :: httpation:request(),
-         Method     :: method(),
+-spec method(Method, Request) -> NewRequest
+    when Method     :: method(),
+         Request    :: httpation:request(),
          NewRequest :: httpation:request().
 %% @doc
 %% Set HTTP method of given request entity
-method(Request, Method) ->
+method(Method, Request) ->
     Request#http_request{method = Method}.
 
 
@@ -103,13 +103,13 @@ version(#http_request{version = Version}) ->
     Version.
 
 
--spec version(Request, Version) -> NewRequest
-    when Request    :: httpation:request(),
-         Version    :: httpation:version(),
+-spec version(Version, Request) -> NewRequest
+    when Version    :: httpation:version(),
+         Request    :: httpation:request(),
          NewRequest :: httpation:request().
 %% @doc
 %% Set version of the given request entity
-version(Request, Version) ->
+version(Version, Request) ->
     Request#http_request{version = Version}.
 
 
@@ -123,13 +123,13 @@ headers(#http_request{headers = Headers}) ->
     Headers.
 
 
--spec headers(Request, Headers) -> NewRequest
-    when Request    :: httpation:request(),
-         Headers    :: [httpation:header()],
+-spec headers(Headers, Request) -> NewRequest
+    when Headers    :: [httpation:header()],
+         Request    :: httpation:request(),
          NewRequest :: httpation:request().
 %% @doc
 %% Set headers of the given request entity
-headers(Request, Headers) ->
+headers(Headers, Request) ->
     Request#http_request{headers = Headers}.
 
 
@@ -143,13 +143,13 @@ uri(#http_request{uri = URI}) ->
     URI.
 
 
--spec uri(Request, URI) -> NewRequest
-    when Request    :: httpation:request(),
-         URI        :: httpation:uri(),
+-spec uri(URI, Request) -> NewRequest
+    when URI        :: httpation:uri(),
+         Request    :: httpation:request(),
          NewRequest :: httpation:request().
 %% @doc
 %% Set uri of the given request entity
-uri(Request, URI) ->
+uri(URI, Request) ->
     Request#http_request{uri = URI}.
 
 
@@ -163,18 +163,18 @@ chunk_size(#http_request{chunk_size = ChunkSize}) ->
     ChunkSize.
 
 
--spec chunk_size(Request, ChunkSize) -> NewRequest
-    when Request    :: httpation:request(),
-         ChunkSize  :: non_neg_integer(),
+-spec chunk_size(ChunkSize, Request) -> NewRequest
+    when ChunkSize  :: non_neg_integer(),
+         Request    :: httpation:request(),
          NewRequest :: httpation:request().
 %% @doc
 %% Set chunk size of the given request entity
-chunk_size(Request, ChunkSize) ->
+chunk_size(ChunkSize, Request) ->
     Request#http_request{chunk_size = ChunkSize}.
 
 
 -spec body(Request) -> Body
-    when Request :: httpation:request(),
+    when Request ::  httpation:request(),
          Body    ::  unicode:chardata() | binary().
     %% @doc
     %% Returns the body of the given request
@@ -183,13 +183,13 @@ body(#http_request{body = Body}) ->
     Body.
 
 
--spec body(Request, Body) -> NewRequest
-    when Request    :: httpation:request(),
-         Body       :: unicode:chardata() | binary() ,
+-spec body(Body, Request) -> NewRequest
+    when Body       :: unicode:chardata() | binary() ,
+         Request    :: httpation:request(),
          NewRequest :: httpation:request().
 %% @doc
 %% Set body of the given request entity
-body(Request, Body) ->
+body(Body, Request) ->
     Request#http_request{body = Body}.
 
 
@@ -203,11 +203,11 @@ trailer(#http_request{trailer = Trailer}) ->
     Trailer.
 
 
--spec trailer(Request, Trailer) -> NewRequest
-    when Request    :: httpation:request(),
-         Trailer    :: [httpation:header()],
+-spec trailer(Trailer, Request) -> NewRequest
+    when Trailer    :: [httpation:header()],
+         Request    :: httpation:request(),
          NewRequest :: httpation:request().
 %% @doc
 %% Set trailer of the given request entity
-trailer(Request, Trailer) ->
+trailer(Trailer, Request) ->
     Request#http_request{trailer = Trailer}.
