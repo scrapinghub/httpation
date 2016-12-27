@@ -84,10 +84,22 @@ new(URI) when is_list(URI) ->
 new(_) ->
     {error, not_a_string}.
 
+consume(Acc, Rest, URI) ->
+    Index = string:str(Rest, "@"),
+    case Index of
+        0 ->
+            consume_hostname(Acc, [], Rest, URI);
+        _ ->
+            UsernameAndPassword = string:substr(Rest, 1, Index -1 ),
+            Rest1 = string:substr(Rest, Index + 1, string:len(Rest) - Index),
+            {ok, URI0} = consume_username(Acc, UsernameAndPassword, URI),
+            consume_hostname(Acc, [], Rest1, URI0)
+    end.
+
 
 consume_protocol(Acc, "://" ++ Rest, URI) ->
     Protocol = lists:reverse(Acc),
-    consume_username("", Rest, URI#uri{protocol = Protocol});
+    consume("", Rest, URI#uri{protocol = Protocol});
 consume_protocol(Acc, [Letter | Rest], URI)
         when $a =< Letter, Letter =< $z;
              $0 =< Letter, Letter =< $9 ->
@@ -101,15 +113,9 @@ consume_username("", "", _) ->
 consume_username(Acc, "", URI) ->
     Hostname = string:tokens(lists:reverse(Acc), "."),
     {ok, URI#uri{hostname = Hostname}};
-consume_username(Acc, [$/ | Rest], URI) ->
-    Hostname = string:tokens(lists:reverse(Acc), "."),
-    consume_path("", [], Rest, URI#uri{hostname = Hostname});
 consume_username(Acc, [$: | Rest], URI) ->
     Username = lists:reverse(Acc),
     consume_password("", Rest, URI#uri{username = Username});
-consume_username(Acc, [$@ | Rest], URI) ->
-    Username = lists:reverse(Acc),
-    consume_hostname("", [], Rest, URI#uri{username = Username});
 consume_username(Acc, [Letter | Rest], URI)
         when $a =< Letter, Letter =< $z;
              $0 =< Letter, Letter =< $9;
@@ -122,32 +128,11 @@ consume_username(_, _, _) ->
 
 consume_password("", "", #uri{username = ""}) ->
     {error, password_or_port};
-consume_password("", "", URI = #uri{username = Username}) ->
-    Hostname = string:tokens(Username, "."),
-    {ok, URI#uri{username = "", hostname = Hostname}};
-consume_password("", [$/ | Rest], URI = #uri{username = Username}) ->
-    Hostname = string:tokens(Username, "."),
-    consume_path("", [], Rest, URI#uri{username = "", hostname = Hostname});
-consume_password(Acc, "", URI = #uri{username = Username}) ->
-    case string:to_integer(lists:reverse(Acc)) of
-        {Port, ""} ->
-            Hostname = string:tokens(Username, "."),
-            {ok, URI#uri{username = "", hostname = Hostname, port = Port}};
-        _ ->
-            {error, port}
-    end;
-consume_password(Acc, [$/ | Rest], URI = #uri{username = Username}) ->
-    case string:to_integer(lists:reverse(Acc)) of
-        {Port, ""} ->
-            Hostname = string:tokens(Username, "."),
-            NewURI = URI#uri{username = "", hostname = Hostname, port = Port},
-            consume_path("", [], Rest, NewURI);
-        _ ->
-            {error, port}
-    end;
-consume_password(Acc, [$@ | Rest], URI) ->
+consume_password("", "", URI) ->
+    {ok, URI};
+consume_password(Acc, "", URI) ->
     Password = lists:reverse(Acc),
-    consume_hostname("", [], Rest, URI#uri{password = Password});
+    {ok, URI#uri{password = Password}};
 consume_password(Acc, [Letter | Rest], URI)
         when $a =< Letter, Letter =< $z;
              $0 =< Letter, Letter =< $9;
@@ -157,28 +142,19 @@ consume_password(_, _, _) ->
     {error, port}.
 
 
-consume_hostname(Acc, Parts, "", URI) ->
-    Part = lists:reverse(Acc),
-    NewParts = [Part | Parts],
-    Hostname = lists:reverse(NewParts),
+consume_hostname(Acc, _Parts, "", URI) ->
+    Hostname = lists:reverse(Acc),
     {ok, URI#uri{hostname = Hostname, path = ["/"]}};
-consume_hostname(Acc, Parts, [$. | Rest], URI) ->
-    Part = lists:reverse(Acc),
-    consume_hostname("", [Part | Parts], Rest, URI);
-consume_hostname(Acc, Parts, [$: | Rest], URI) ->
-    Part = lists:reverse(Acc),
-    NewParts = [Part | Parts],
-    Hostname = lists:reverse(NewParts),
+consume_hostname(Acc, _Parts, [$: | Rest], URI) ->
+    Hostname = lists:reverse(Acc),
     consume_port("", Rest, URI#uri{hostname = Hostname});
-consume_hostname(Acc, Parts, [$/ | Rest], URI) ->
-    Part = lists:reverse(Acc),
-    NewParts = [Part | Parts],
-    Hostname = lists:reverse(NewParts),
+consume_hostname(Acc, _Parts, [$/ | Rest], URI) ->
+    Hostname = lists:reverse(Acc),
     consume_path("", [], Rest, URI#uri{hostname = Hostname});
 consume_hostname(Acc, Parts, [Letter | Rest], URI)
         when $a =< Letter, Letter =< $z;
              $0 =< Letter, Letter =< $9;
-             Letter == $-; Letter == $_ ->
+             Letter == $-; Letter == $_ ; Letter == $. ->
     consume_hostname([Letter | Acc], Parts, Rest, URI);
 consume_hostname(_, _, _, _) ->
     {error, hostname}.
