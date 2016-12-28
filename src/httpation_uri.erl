@@ -35,7 +35,7 @@
         {protocol = ""      :: string(),
          username = ""      :: string(),
          password = ""      :: string(),
-         hostname = []      :: [string()],
+         hostname = ""      :: string(),
          port     = default :: default | inet:port_number(),
          path     = ["/"]   :: [string()],
          qs       = []      :: [qs()],
@@ -51,6 +51,7 @@
 -type segment() :: scheme
                  | user_or_hostname
                  | hostname_or_port
+                 | password_or_port
                  | hostname
                  | port
                  | path
@@ -131,7 +132,7 @@ consume_password(Acc, "", URI = #uri{username = Username}) ->
         {Port, ""} ->
             {ok, URI#uri{username = "", hostname = Username, port = Port}};
         _ ->
-            {error, port}
+            {error, password_or_port}
     end;
 consume_password(Acc, [$/ | Rest], URI = #uri{username = Username}) ->
     case string:to_integer(lists:reverse(Acc)) of
@@ -150,7 +151,7 @@ consume_password(Acc, [Letter | Rest], URI)
              Letter == $-; Letter == $_ ->
     consume_password([Letter | Acc], Rest, URI);
 consume_password(_, _, _) ->
-    {error, port}.
+    {error, password_or_port}.
 
 
 consume_hostname(Acc, "", URI) ->
@@ -165,7 +166,7 @@ consume_hostname(Acc, [$/ | Rest], URI) ->
 consume_hostname(Acc, [Letter | Rest], URI)
         when $a =< Letter, Letter =< $z;
              $0 =< Letter, Letter =< $9;
-             Letter == $-; Letter == $_ ->
+             Letter == $-; Letter == $_; Letter == $. ->
     consume_hostname([Letter | Acc], Rest, URI);
 consume_hostname(_, _, _) ->
     {error, hostname}.
@@ -190,11 +191,21 @@ consume_port(_, _, _) ->
     {error, port}.
 
 
+consume_path("", _Parts, "", URI) ->
+    {ok, URI#uri{path = ["/"]}};
 consume_path(Acc, Parts, "", URI) ->
     Part = lists:reverse(Acc),
     NewParts = [Part | Parts],
     Path = lists:reverse(NewParts),
     {ok, URI#uri{path = Path}};
+consume_path(_, Parts, [$/ | [$/ | Rest]], URI) ->
+    %% repeated slash in path
+    %% netloc////////path
+    %% this removes 1 slash at a time to avoid errors
+    consume_path("", Parts, [$/ | Rest], URI);
+consume_path("", _, [$/ | Rest], URI) ->
+    %% empty path
+    consume_path("", [], Rest, URI);
 consume_path(Acc, Parts, [$/ | Rest], URI) ->
     Part = lists:reverse(Acc),
     consume_path("", [Part | Parts], Rest, URI);
