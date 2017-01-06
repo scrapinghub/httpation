@@ -35,7 +35,7 @@
         {protocol = ""      :: string(),
          username = ""      :: string(),
          password = ""      :: string(),
-         hostname = []      :: [string()],
+         hostname = ""      :: string(),
          port     = default :: default | inet:port_number(),
          path     = ["/"]   :: [string()],
          qs       = []      :: [qs()],
@@ -51,6 +51,7 @@
 -type segment() :: scheme
                  | user_or_hostname
                  | hostname_or_port
+                 | password_or_port
                  | hostname
                  | port
                  | path
@@ -99,17 +100,17 @@ consume_protocol(_, _, _) ->
 consume_username("", "", _) ->
     {error, user_or_hostname};
 consume_username(Acc, "", URI) ->
-    Hostname = string:tokens(lists:reverse(Acc), "."),
+    Hostname = lists:reverse(Acc),
     {ok, URI#uri{hostname = Hostname}};
 consume_username(Acc, [$/ | Rest], URI) ->
-    Hostname = string:tokens(lists:reverse(Acc), "."),
+    Hostname = lists:reverse(Acc),
     consume_path("", [], Rest, URI#uri{hostname = Hostname});
 consume_username(Acc, [$: | Rest], URI) ->
     Username = lists:reverse(Acc),
     consume_password("", Rest, URI#uri{username = Username});
 consume_username(Acc, [$@ | Rest], URI) ->
     Username = lists:reverse(Acc),
-    consume_hostname("", [], Rest, URI#uri{username = Username});
+    consume_hostname("", Rest, URI#uri{username = Username});
 consume_username(Acc, [Letter | Rest], URI)
         when $a =< Letter, Letter =< $z;
              $0 =< Letter, Letter =< $9;
@@ -123,64 +124,51 @@ consume_username(_, _, _) ->
 consume_password("", "", #uri{username = ""}) ->
     {error, password_or_port};
 consume_password("", "", URI = #uri{username = Username}) ->
-    Hostname = string:tokens(Username, "."),
-    {ok, URI#uri{username = "", hostname = Hostname}};
+    {ok, URI#uri{username = "", hostname = Username}};
 consume_password("", [$/ | Rest], URI = #uri{username = Username}) ->
-    Hostname = string:tokens(Username, "."),
-    consume_path("", [], Rest, URI#uri{username = "", hostname = Hostname});
+    consume_path("", [], Rest, URI#uri{username = "", hostname = Username});
 consume_password(Acc, "", URI = #uri{username = Username}) ->
     case string:to_integer(lists:reverse(Acc)) of
         {Port, ""} ->
-            Hostname = string:tokens(Username, "."),
-            {ok, URI#uri{username = "", hostname = Hostname, port = Port}};
+            {ok, URI#uri{username = "", hostname = Username, port = Port}};
         _ ->
-            {error, port}
+            {error, password_or_port}
     end;
 consume_password(Acc, [$/ | Rest], URI = #uri{username = Username}) ->
     case string:to_integer(lists:reverse(Acc)) of
         {Port, ""} ->
-            Hostname = string:tokens(Username, "."),
-            NewURI = URI#uri{username = "", hostname = Hostname, port = Port},
+            NewURI = URI#uri{username = "", hostname = Username, port = Port},
             consume_path("", [], Rest, NewURI);
         _ ->
             {error, port}
     end;
 consume_password(Acc, [$@ | Rest], URI) ->
     Password = lists:reverse(Acc),
-    consume_hostname("", [], Rest, URI#uri{password = Password});
+    consume_hostname("", Rest, URI#uri{password = Password});
 consume_password(Acc, [Letter | Rest], URI)
         when $a =< Letter, Letter =< $z;
              $0 =< Letter, Letter =< $9;
              Letter == $-; Letter == $_ ->
     consume_password([Letter | Acc], Rest, URI);
 consume_password(_, _, _) ->
-    {error, port}.
+    {error, password_or_port}.
 
 
-consume_hostname(Acc, Parts, "", URI) ->
-    Part = lists:reverse(Acc),
-    NewParts = [Part | Parts],
-    Hostname = lists:reverse(NewParts),
+consume_hostname(Acc, "", URI) ->
+    Hostname = lists:reverse(Acc),
     {ok, URI#uri{hostname = Hostname, path = ["/"]}};
-consume_hostname(Acc, Parts, [$. | Rest], URI) ->
-    Part = lists:reverse(Acc),
-    consume_hostname("", [Part | Parts], Rest, URI);
-consume_hostname(Acc, Parts, [$: | Rest], URI) ->
-    Part = lists:reverse(Acc),
-    NewParts = [Part | Parts],
-    Hostname = lists:reverse(NewParts),
+consume_hostname(Acc, [$: | Rest], URI) ->
+    Hostname = lists:reverse(Acc),
     consume_port("", Rest, URI#uri{hostname = Hostname});
-consume_hostname(Acc, Parts, [$/ | Rest], URI) ->
-    Part = lists:reverse(Acc),
-    NewParts = [Part | Parts],
-    Hostname = lists:reverse(NewParts),
+consume_hostname(Acc, [$/ | Rest], URI) ->
+    Hostname = lists:reverse(Acc),
     consume_path("", [], Rest, URI#uri{hostname = Hostname});
-consume_hostname(Acc, Parts, [Letter | Rest], URI)
+consume_hostname(Acc, [Letter | Rest], URI)
         when $a =< Letter, Letter =< $z;
              $0 =< Letter, Letter =< $9;
-             Letter == $-; Letter == $_ ->
-    consume_hostname([Letter | Acc], Parts, Rest, URI);
-consume_hostname(_, _, _, _) ->
+             Letter == $-; Letter == $_; Letter == $. ->
+    consume_hostname([Letter | Acc], Rest, URI);
+consume_hostname(_, _, _) ->
     {error, hostname}.
 
 
@@ -203,11 +191,21 @@ consume_port(_, _, _) ->
     {error, port}.
 
 
+consume_path("", _Parts, "", URI) ->
+    {ok, URI#uri{path = ["/"]}};
 consume_path(Acc, Parts, "", URI) ->
     Part = lists:reverse(Acc),
     NewParts = [Part | Parts],
     Path = lists:reverse(NewParts),
     {ok, URI#uri{path = Path}};
+consume_path(_, Parts, [$/ | [$/ | Rest]], URI) ->
+    %% repeated slash in path
+    %% netloc////////path
+    %% this removes 1 slash at a time to avoid errors
+    consume_path("", Parts, [$/ | Rest], URI);
+consume_path("", _, [$/ | Rest], URI) ->
+    %% empty path
+    consume_path("", [], Rest, URI);
 consume_path(Acc, Parts, [$/ | Rest], URI) ->
     Part = lists:reverse(Acc),
     consume_path("", [Part | Parts], Rest, URI);
@@ -312,8 +310,7 @@ consume_fragment(_, Fragment, URI) ->
 %% Accept a URI datatype and export a URI-safe encoded string.
 %% FIXME: This currently returns an unsafe URI.
 
-export(URI = #uri{protocol = Protocol, hostname = RawHostname}) ->
-    Hostname = string:join(RawHostname, "."),
+export(URI = #uri{protocol = Protocol, hostname = Hostname}) ->
     cat_port([Protocol, "://", Hostname], URI).
 
 
@@ -414,8 +411,8 @@ password(String, URI) ->
 %% @doc
 %% Accept a URI datatype and return the hostname.
 
-hostname(#uri{hostname = Parts}) ->
-    string:join(Parts, ".").
+hostname(#uri{hostname = Hostname}) ->
+    Hostname.
 
 
 -spec hostname(String, URI) -> NewURI
@@ -426,8 +423,7 @@ hostname(#uri{hostname = Parts}) ->
 %% Accept a hostname and a URI, and return the URI updated with the new hostname.
 %% FIXME: Currently accepts invalid input and performs no IDN conversions.
 
-hostname(String, URI) ->
-    Hostname = string:tokens(String, "."),
+hostname(Hostname, URI) ->
     URI#uri{hostname = Hostname}.
 
 
