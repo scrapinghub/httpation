@@ -15,8 +15,10 @@
 -module(httpation_uri).
 -vsn("0.1.0").
 -author("Craig Everett <zxq9@zxq9.com>").
+-author("Eduardo Gonzalo Espinoza Carreon <eduardoespc@gmail.com>").
 
--export([new/0, new/1,
+-export([%% API
+         new/0, new/1,
          export/1,
          protocol/1, protocol/2,
          username/1, username/2,
@@ -26,6 +28,10 @@
          path/1, path/2,
          qs/1, qs/2, update_qs/3, drop_qs/2,
          construct_uri/2,
+         root_domain/1,
+         get_parent_domain/1,
+         is_tld/1,
+         %% utils
          check_custom_port/2,
          pack_uri/5]).
 
@@ -79,7 +85,7 @@ new() ->
 %% If the input string is not a valid URI `{error, FunName, Args}' is returned.
 
 new(URI) when is_list(URI) ->
-    String = string:to_lower(URI),
+    String = to_lower(URI),
     consume_protocol("", String, #uri{original = URI});
 new(_) ->
     {error, not_a_string}.
@@ -541,7 +547,9 @@ construct_uri(UriString, Defaults) ->
     case new(UriString) of
         {ok, URI} ->
             QS = qs(URI),
-            {ok, lists:foldl(fun update_listkey/2, Defaults, QS)};
+            FullQS = lists:foldl(fun update_listkey/2, Defaults, QS),
+            NewURI = qs(FullQS, URI),
+            {ok, NewURI};
         Error ->
             Error
     end.
@@ -560,16 +568,49 @@ update_listkey({Key, Value}, QueryList) ->
     lists:keystore(Key, 1, QueryList, {Key, Value}).
 
 
-%-spec is_tld(Domain) -> Result
-%    when Domain :: string(),
-%         Result :: boolean().
-%%% %@doc
-%%% Check if the Domain is a Top Level Domain
-%%% It uses the bd providen in
-%%% http://mxr.mozilla.org/mozilla-central/source/netwerk/dns/effective_tld_names.dat?raw=1
-%
-%is_tld(Domain) when is_binary(Domain) -> is_tld(binary_to_list(Domain));
-%is_tld(Domain) -> publicsuffix:is_tld(Domain).
+-spec root_domain(URI) -> RootDomain
+    when URI        :: uri(),
+         RootDomain :: string().
+%% @doc
+%% Get root domain for any hostname
+%% Example: `bar.baz.foo.example.com` -> example.com
+
+root_domain(#uri{hostname = Hostname}) ->
+    RootDomain = lists:nthtail(length(Hostname) - 2, Hostname),
+    string:join(RootDomain, ".").
+
+
+
+-spec get_parent_domain(URI) -> ParentHostname
+    when URI            :: uri(),
+         ParentHostname :: string().
+%% @doc
+%% Get parent domain for any hostname
+%% Example: `foo.example.com`     -> example.com
+%%          `bar.foo.example.com` -> foo.example.com
+
+get_parent_domain(#uri{hostname = [_ParentHostname]}) ->
+    "";
+get_parent_domain(#uri{hostname = [_H|ParentHostname]}) ->
+    string:join(ParentHostname, ".").
+
+
+-spec is_tld(URI) -> Result
+    when URI    :: uri(),
+         Result :: boolean().
+%% @doc
+%% Check if the Domain is a Top Level Domain
+%% It uses the bd providen in
+%% http://mxr.mozilla.org/mozilla-central/source/netwerk/dns/effective_tld_names.dat?raw=1
+
+is_tld(URI) ->
+    Hostname = hostname(URI),
+    publicsuffix:is_tld(Hostname).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Utils
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 -spec check_custom_port(Scheme, Port) -> Result
@@ -627,3 +668,21 @@ pack_uri({Scheme, Port}, User, Host, Path, "") ->
     io_lib:format("~p://~s@~s:~p/~s", [Scheme, User, Host, Port, Path]);
 pack_uri({Scheme, Port}, User, Host, Path, Query) ->
     io_lib:format("~p://~s@~s:~p/~s?~s", [Scheme, User, Host, Port, Path, Query]).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Internals
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec to_lower(URI) -> NewURI
+    when URI    :: string(),
+         NewURI :: string().
+%% @doc
+%% special version of string:to_lower, none of the query string keys and values
+%% will change its case (useful for password or other case-sensitive stuff)
+to_lower([]) ->
+    "";
+to_lower([$?| URI]) ->
+    [$? | URI];
+to_lower([C| URI]) ->
+    [string:to_lower(C) | URI].
